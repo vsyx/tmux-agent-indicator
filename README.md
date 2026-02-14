@@ -2,6 +2,12 @@
 
 Stateful tmux plugin for AI agent workflows (Claude Code, Codex, and custom wrappers).
 
+## Demo
+
+https://github.com/user-attachments/assets/4fed0fc4-4d63-45e8-82c7-a1d3eedecc04
+
+When the agent finishes, the window title background/foreground changes and the pane border updates to signal completion.
+
 ## Features
 
 - Pane visuals by state: `running`, `needs-input`, `done`.
