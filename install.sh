@@ -112,8 +112,9 @@ cp "$SCRIPT_DIR/LICENSE" "$TARGET_DIR/"
 cp "$SCRIPT_DIR/scripts/"*.sh "$TARGET_DIR/scripts/"
 cp "$SCRIPT_DIR/hooks/"*.json "$TARGET_DIR/hooks/"
 cp "$SCRIPT_DIR/adapters/"*.sh "$TARGET_DIR/adapters/"
+cp "$SCRIPT_DIR/setup.sh" "$TARGET_DIR/"
 
-chmod +x "$TARGET_DIR/agent-indicator.tmux" "$TARGET_DIR/scripts/"*.sh "$TARGET_DIR/adapters/"*.sh
+chmod +x "$TARGET_DIR/agent-indicator.tmux" "$TARGET_DIR/scripts/"*.sh "$TARGET_DIR/adapters/"*.sh "$TARGET_DIR/setup.sh"
 
 if [ "$INSTALL_CLAUDE" = true ] || [ "$UNINSTALL_CLAUDE" = true ]; then
     CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
@@ -262,4 +263,17 @@ fi
 
 if [ "$UNINSTALL_CODEX" = true ]; then
     echo "Removed tmux-agent-indicator Codex notify from: ${CODEX_CONFIG_DIR:-$HOME/.codex}/config.toml"
+fi
+
+if [[ -t 0 ]]; then
+    printf "\nConfigure colors now? [Y/n]: "
+    read -r setup_reply
+    case "${setup_reply:-Y}" in
+        [nN]*) ;;
+        *) bash "$TARGET_DIR/setup.sh" ;;
+    esac
+else
+    echo ""
+    echo "To configure colors interactively:"
+    echo "  bash $TARGET_DIR/setup.sh"
 fi

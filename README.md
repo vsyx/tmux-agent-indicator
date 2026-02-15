@@ -1,6 +1,6 @@
 # tmux-agent-indicator
 
-Stateful tmux plugin for AI agent workflows (Claude Code, Codex, and custom wrappers).
+AI agents run in tmux panes but give no signal when they finish or need input. You have to keep switching panes to check. This plugin tracks agent state and surfaces it through pane borders, window titles, and status bar icons so you never miss a transition.
 
 ## Demo
 
@@ -8,14 +8,34 @@ https://github.com/user-attachments/assets/4fed0fc4-4d63-45e8-82c7-a1d3eedecc04
 
 When the agent finishes, the window title background/foreground changes and the pane border updates to signal completion.
 
+| ![needs-input](docs/images/needs-input.png) | ![done](docs/images/done.png) |
+|:---:|:---:|
+| needs-input: yellow window title | done: red window title |
+
+## How it works
+
+The plugin tracks three states per pane: `running`, `needs-input`, and `done`.
+
+State transitions are driven by hooks. Claude Code fires hooks on prompt submit, permission request, and stop. Codex uses its `notify` command. Any other agent can call `agent-state.sh` directly from a wrapper script or hook.
+
+Each state can change:
+- Pane border color
+- Pane background (supported but disabled by default to avoid visual noise)
+- Window title background and foreground
+- Status bar icon (per-agent, e.g. `claude=🤖`, `codex=🧠`)
+
+States reset when you focus the pane/window, or on the next transition.
+
 ## Features
 
-- Pane visuals by state: `running`, `needs-input`, `done`.
-- Per-agent status icons (for example `claude=🤖`, `codex=🧠`).
-- Window title style markers for `needs-input`/`done`, cleared when focus returns to the source pane/window.
-- Optional Knight Rider animation during `running` in the status indicator.
-- Optional deferred pane reset: keep pane colors until focus, not when hook fires.
-- Works with both `status-left/right` and `minimal-tmux-status-right`.
+- Per-agent status icons in the status bar
+- Knight Rider animation during `running` state
+- Deferred pane reset: keep pane colors until focus, not when the hook fires
+- Process detection fallback for agents that don't fire hooks
+
+## Requirements
+
+tmux 3.0+, bash 4+
 
 ## Installation
 
@@ -23,6 +43,12 @@ When the agent finishes, the window title background/foreground changes and the 
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/accessd/tmux-agent-indicator/main/install.sh | bash
+```
+
+The installer will offer to run the interactive color setup wizard. You can also run it later:
+
+```bash
+bash ~/.tmux/plugins/tmux-agent-indicator/setup.sh
 ```
 
 This installs files to `~/.tmux/plugins/tmux-agent-indicator` and updates:
@@ -58,13 +84,33 @@ For native status:
 set -g status-right '#{agent_indicator} | %H:%M'
 ```
 
-For `minimal-tmux-status`:
+For [minimal-tmux-status](https://github.com/niksingh710/minimal-tmux-status):
 
 ```tmux
 set -g @minimal-tmux-status-right '#{agent_indicator} #(gitmux "#{pane_current_path}")'
 ```
 
 ## Configuration
+
+Quick start with the most useful options:
+
+```tmux
+# Enable/disable visual channels
+set -g @agent-indicator-border-enabled 'on'
+set -g @agent-indicator-indicator-enabled 'on'
+
+# Per-agent icons
+set -g @agent-indicator-icons 'claude=🤖,codex=🧠,default=🤖'
+
+# Keep pane colors until you focus the pane (instead of clearing immediately)
+set -g @agent-indicator-reset-on-focus 'on'
+
+# Knight Rider animation while running
+set -g @agent-indicator-animation-enabled 'on'
+```
+
+<details>
+<summary>Full configuration reference</summary>
 
 ```tmux
 # Global toggles
@@ -115,30 +161,21 @@ set -g @agent-indicator-needs-input-bg 'colour94'
 set -g @agent-indicator-done-bg 'green'
 ```
 
-Enable animation with defaults:
+Empty option values are treated as "do not apply this property" (for toggles, empty behaves as disabled). Example:
 
 ```tmux
-set -g @agent-indicator-animation-enabled 'on'
+set -g @agent-indicator-done-bg ''
 ```
 
-That single line is enough. If you do not set `@agent-indicator-animation-speed`, default is `300` ms.
+This skips done-state background changes while still allowing done border/title styles.
 
-Optional speed override:
+Note: tmux border coloring is window-scoped (`pane-active-border-style` / `pane-border-style`).
+You can style the active border differently, but tmux cannot set a fully independent border color for one arbitrary non-active pane.
 
-```tmux
-set -g @agent-indicator-animation-speed '120'
-```
+</details>
 
-## Tmux Colors
-
-Tmux supports:
-- 8 basic colors: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`
-- bright variants (`brightred`, `brightblue`, etc.)
-- 256-color palette: `colour0` ... `colour255`
-
-![Tmux color chart](docs/assets/tmux-colors.png)
-
-### Recommended Presets
+<details>
+<summary>Color presets</summary>
 
 Preset 1 (Balanced):
 
@@ -179,20 +216,23 @@ set -g @agent-indicator-done-window-title-bg 'colour238'
 set -g @agent-indicator-done-window-title-fg 'colour194'
 ```
 
-Empty option values are treated as "do not apply this property" (for toggles, empty behaves as disabled). Example:
+</details>
 
-```tmux
-set -g @agent-indicator-done-bg ''
-```
+<details>
+<summary>Tmux color reference</summary>
 
-This skips done-state background changes while still allowing done border/title styles.
+Tmux supports:
+- 8 basic colors: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`
+- Bright variants (`brightred`, `brightblue`, etc.)
+- 256-color palette: `colour0` ... `colour255`
 
-Note: tmux border coloring is window-scoped (`pane-active-border-style` / `pane-border-style`).
-You can style the active border differently, but tmux cannot set a fully independent border color for one arbitrary non-active pane.
+![Tmux color chart](docs/assets/tmux-colors.png)
 
-## Manual and Adapter Usage
+</details>
 
-Manual state updates:
+## Custom Agent Integration
+
+To integrate any agent that does not have built-in hook support, call `agent-state.sh` from your agent's hooks or wrapper script.
 
 ```bash
 ~/.tmux/plugins/tmux-agent-indicator/scripts/agent-state.sh --agent claude --state running
@@ -203,13 +243,9 @@ Manual state updates:
 
 `--state off` always resets pane background and border immediately.
 
-## Testing
-
-Automated and manual test playbooks are documented in `docs/TESTING.md`.
-
 ## Claude Hook Template
 
-Default template file: `hooks/claude-hooks.json`  
+Default template file: `hooks/claude-hooks.json`
 It maps:
 - `UserPromptSubmit` -> `running`
 - `PermissionRequest` -> `needs-input`
