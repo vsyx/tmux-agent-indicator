@@ -165,7 +165,7 @@ if [ "$INSTALL_CLAUDE" = true ] || [ "$UNINSTALL_CLAUDE" = true ]; then
 
     if [ "$INSTALL_CLAUDE" = true ]; then
         echo "Claude detected"
-        echo "  Hooks -> $CLAUDE_SETTINGS (UserPromptSubmit, PermissionRequest, Stop)"
+        echo "  Hooks -> $CLAUDE_SETTINGS (UserPromptSubmit, PermissionRequest, PostToolUse, Stop)"
     fi
 
     if [ -f "$CLAUDE_SETTINGS" ]; then
@@ -223,11 +223,13 @@ for event in list(hooks.keys()):
 
 events = {
     "UserPromptSubmit": [
-        f"\"${{TMUX_AGENT_INDICATOR_DIR:-{target_dir}}}\"/scripts/agent-state.sh --agent claude --state off",
         f"\"${{TMUX_AGENT_INDICATOR_DIR:-{target_dir}}}\"/scripts/agent-state.sh --agent claude --state running",
     ],
     "PermissionRequest": [
         f"\"${{TMUX_AGENT_INDICATOR_DIR:-{target_dir}}}\"/scripts/agent-state.sh --agent claude --state needs-input",
+    ],
+    "PostToolUse": [
+        f"\"${{TMUX_AGENT_INDICATOR_DIR:-{target_dir}}}\"/scripts/agent-state.sh --agent claude --state running",
     ],
     "Stop": [
         f"\"${{TMUX_AGENT_INDICATOR_DIR:-{target_dir}}}\"/scripts/agent-state.sh --agent claude --state done",
