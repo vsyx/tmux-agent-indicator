@@ -280,9 +280,14 @@ resolve_target_pane() {
 notify_state_change() {
     local agent="$1" state="$2" pane_id="$3"
 
-    local notif_enabled
+    local notif_enabled notif_active_window
     notif_enabled=$(tmux_get_option_or_default "@agent-indicator-notification-enabled" "on")
     is_enabled "$notif_enabled" || return 0
+
+    notif_active_window=$(tmux_get_option_or_default "@agent-indicator-notification-active-window" "on")
+    if ! is_enabled "$notif_active_window" && [ "$window_id" = "$active_window_id" ]; then
+        return 0
+    fi
 
     local notif_states
     notif_states=$(tmux_get_option_or_default "@agent-indicator-notification-states" "needs-input,done")
@@ -507,7 +512,7 @@ case "$state" in
         fi
         notify_state_change "$agent" "$state" "$pane_id"
 
-        if is_enabled "$reset_on_focus"; then
+        if is_enabled "$reset_on_focus" && [ "$pane_id" != "$active_pane_id" ]; then
             tmux_set_env "$pending_reset_key" "1"
         else
             tmux_unset_env "$pending_reset_key"
