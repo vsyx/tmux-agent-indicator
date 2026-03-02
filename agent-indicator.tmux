@@ -35,6 +35,8 @@ register_hook_once() {
     # Remove previously registered plugin hooks to avoid duplicates.
     while IFS= read -r line; do
         [ -z "$line" ] && continue
+        # Skip bare hook names (no command attached).
+        [[ "$line" != *" "* ]] && continue
         local existing_name
         existing_name="${line%% *}"
         tmux set-hook -gu "$existing_name" 2>/dev/null || true

@@ -365,6 +365,7 @@ active_pane_id=$(tmux display-message -p '#{pane_id}')
 background_enabled=$(tmux_get_option_or_default "@agent-indicator-background-enabled" "on")
 border_enabled=$(tmux_get_option_or_default "@agent-indicator-border-enabled" "on")
 reset_on_focus=$(tmux_get_option_or_default "@agent-indicator-reset-on-focus" "on")
+window_title_active=$(tmux_get_option_or_default "@agent-indicator-window-title-active" "off")
 
 state_key="TMUX_AGENT_PANE_${pane_id}_STATE"
 agent_key="TMUX_AGENT_PANE_${pane_id}_AGENT"
@@ -424,7 +425,7 @@ case "$state" in
             restore_active_border_style "$window_id"
         fi
 
-        if [ "$window_id" != "$active_window_id" ]; then
+        if is_enabled "$window_title_active" || [ "$window_id" != "$active_window_id" ]; then
             apply_window_title_style "$window_id" "$state_title_bg" "$state_title_fg"
         fi
         start_animation
@@ -466,7 +467,7 @@ case "$state" in
             restore_active_border_style "$window_id"
         fi
 
-        if [ "$window_id" != "$active_window_id" ]; then
+        if is_enabled "$window_title_active" || [ "$window_id" != "$active_window_id" ]; then
             apply_window_title_style "$window_id" "$state_title_bg" "$state_title_fg"
         fi
         notify_state_change "$agent" "$state" "$pane_id"
@@ -501,7 +502,7 @@ case "$state" in
             fi
         fi
 
-        if [ "$window_id" != "$active_window_id" ]; then
+        if is_enabled "$window_title_active" || [ "$window_id" != "$active_window_id" ]; then
             apply_window_title_style "$window_id" "$state_title_bg" "$state_title_fg" "done"
         fi
         notify_state_change "$agent" "$state" "$pane_id"
