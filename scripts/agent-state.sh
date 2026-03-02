@@ -176,13 +176,13 @@ restore_active_border_style() {
 
 reset_pane_style() {
     local pane_id="$1"
-    tmux select-pane -t "$pane_id" -P "bg=default"
+    tmux set-option -p -t "$pane_id" window-style "bg=default"
 }
 
 apply_pane_style() {
     local pane_id="$1"
     local bg="$2"
-    tmux select-pane -t "$pane_id" -P "bg=$bg"
+    tmux set-option -p -t "$pane_id" window-style "bg=$bg"
 }
 
 pane_exists() {
@@ -367,10 +367,13 @@ window_id=$(tmux display-message -p -t "$pane_id" '#{window_id}')
 active_window_id=$(tmux display-message -p '#{window_id}')
 active_pane_id=$(tmux display-message -p '#{pane_id}')
 
+window_pane_count=$(tmux display-message -p -t "$pane_id" '#{window_panes}')
 background_enabled=$(tmux_get_option_or_default "@agent-indicator-background-enabled" "on")
 border_enabled=$(tmux_get_option_or_default "@agent-indicator-border-enabled" "on")
 reset_on_focus=$(tmux_get_option_or_default "@agent-indicator-reset-on-focus" "on")
 window_title_active=$(tmux_get_option_or_default "@agent-indicator-window-title-active" "off")
+background_active=$(tmux_get_option_or_default "@agent-indicator-background-active" "off")
+background_multi_pane_only=$(tmux_get_option_or_default "@agent-indicator-background-multi-pane-only" "on")
 
 state_key="TMUX_AGENT_PANE_${pane_id}_STATE"
 agent_key="TMUX_AGENT_PANE_${pane_id}_AGENT"
@@ -404,7 +407,8 @@ case "$state" in
         tmux_set_env "$agent_key" "$agent"
         tmux_set_env "TMUX_AGENT_ACTIVE_PANE_${agent}" "$pane_id"
 
-        if [ "$pane_id" != "$active_pane_id" ]; then
+        if ! is_enabled "$background_multi_pane_only" || [ "$window_pane_count" -gt 1 ]; then
+        if is_enabled "$background_active" || [ "$pane_id" != "$active_pane_id" ]; then
             if is_enabled "$background_enabled"; then
                 if [ -z "$state_bg" ]; then
                     :
@@ -416,6 +420,7 @@ case "$state" in
             else
                 reset_pane_style "$pane_id"
             fi
+        fi
         fi
 
         if is_enabled "$border_enabled"; then
@@ -446,7 +451,8 @@ case "$state" in
         tmux_set_env "$agent_key" "$agent"
         tmux_set_env "TMUX_AGENT_ACTIVE_PANE_${agent}" "$pane_id"
 
-        if [ "$pane_id" != "$active_pane_id" ]; then
+        if ! is_enabled "$background_multi_pane_only" || [ "$window_pane_count" -gt 1 ]; then
+        if is_enabled "$background_active" || [ "$pane_id" != "$active_pane_id" ]; then
             if is_enabled "$background_enabled"; then
                 if [ -z "$state_bg" ]; then
                     :
@@ -458,6 +464,7 @@ case "$state" in
             else
                 reset_pane_style "$pane_id"
             fi
+        fi
         fi
 
         if is_enabled "$border_enabled"; then
@@ -485,7 +492,8 @@ case "$state" in
         tmux_set_env "$done_window_key" "$window_id"
         tmux_set_env "TMUX_AGENT_ACTIVE_PANE_${agent}" "$pane_id"
 
-        if [ "$pane_id" != "$active_pane_id" ]; then
+        if ! is_enabled "$background_multi_pane_only" || [ "$window_pane_count" -gt 1 ]; then
+        if is_enabled "$background_active" || [ "$pane_id" != "$active_pane_id" ]; then
             if is_enabled "$background_enabled"; then
                 if [ -z "$state_bg" ]; then
                     :
@@ -495,6 +503,7 @@ case "$state" in
                     apply_pane_style "$pane_id" "$state_bg"
                 fi
             fi
+        fi
         fi
 
         if is_enabled "$border_enabled"; then
@@ -512,7 +521,12 @@ case "$state" in
         fi
         notify_state_change "$agent" "$state" "$pane_id"
 
-        if is_enabled "$reset_on_focus" && [ "$pane_id" != "$active_pane_id" ]; then
+        if is_enabled "$background_active" && [ "$pane_id" = "$active_pane_id" ]; then
+            # Keep done styling visible on active pane; focus change will clear it
+            if is_enabled "$reset_on_focus"; then
+                tmux_set_env "$pending_reset_key" "1"
+            fi
+        elif is_enabled "$reset_on_focus" && [ "$pane_id" != "$active_pane_id" ]; then
             tmux_set_env "$pending_reset_key" "1"
         else
             tmux_unset_env "$pending_reset_key"
